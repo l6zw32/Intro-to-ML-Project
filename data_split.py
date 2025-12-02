@@ -6,6 +6,7 @@ Some helper functions for generating training and testing data
 """
 
 import random
+import math
 from surprise import Dataset, Reader
 from surprise.model_selection import train_test_split, cross_validate
 import pandas as pd
@@ -14,8 +15,67 @@ import numpy as np
 default_data = Dataset.load_builtin("ml-100k")
 
 
+class UserKFold:
+    """
+    Splits the dataset into folds by users (not individual ratings).
+    Each fold contains a subset of users; test set contains *all* ratings of those users.
+    """
+
+    def __init__(self, n_splits=5, shuffle=True, random_state=None, frac=0.3):
+        self.n_splits = n_splits
+        self.shuffle = shuffle
+        self.random_state = random_state
+        self.frac = frac
+
+    def split(self, dataset):
+        raw = dataset.raw_ratings
+
+        df = pd.DataFrame(raw, columns=["UserID", "MovieID", "Rating", "timestamp"])
+        df = df.drop(columns="timestamp")
+
+        # Group by user
+        users = df['UserID'].unique().tolist()
+
+        if self.shuffle:
+            rnd = random.Random(self.random_state)
+            rnd.shuffle(users)
+
+        fold_size = math.ceil(len(users) / self.n_splits)
+
+        for i in range(self.n_splits):
+            test_users = set(users[i * fold_size:(i + 1) * fold_size])
+
+            train_data = []
+            test_data = []
+            
+
+            for uid in test_users:
+                user_ratings = df[df['UserID'] == uid]
+
+                revealed = user_ratings.sample(frac=self.frac, random_state=self.random_state)
+                held_out = user_ratings.drop(revealed.index)
+                train_data.append(revealed)
+                test_data.append(held_out)
+            
+            # Add all other users' ratings to train
+            # The cold_start users (with their actual ratings) are used as test set
+            other_users = df[~df['UserID'].isin(test_users)]
+            train_data.append(other_users)
+
+            train_df = pd.concat(train_data)
+            test_df = pd.concat(test_data)
+
+            reader = Reader(rating_scale=(1, 5))
+            trainset = Dataset.load_from_df(train_df[['UserID', 'MovieID', 'Rating']], reader).build_full_trainset()
+            testset = Dataset.load_from_df(test_df[['UserID', 'MovieID', 'Rating']], reader).build_full_trainset().build_testset()
+            
+            yield trainset, testset
+
+
+
 # Partial cold start
-def cold_start(data=default_data, cold_start_user_portion=0.2, cold_start_user_ratings=5, random_seed=10701):
+# Splits data to training and testing sets based on users
+def cold_start_train(data=default_data, cold_start_user_portion=0.2, frac=0.3, random_seed=10701):
     trainset = data.build_full_trainset()
 
     # Convert the trainset to a list of tuples (user, item, rating)
@@ -33,12 +93,10 @@ def cold_start(data=default_data, cold_start_user_portion=0.2, cold_start_user_r
     for uid in cold_start_users:
         user_ratings = ratings[ratings['UserID'] == uid]
 
-        # Skip user if too few ratings to split
-        if len(user_ratings) > 2 * cold_start_user_ratings:
-            revealed = user_ratings.sample(n=cold_start_user_ratings, random_state=random_seed)
-            held_out = user_ratings.drop(revealed.index)
-            train_data.append(revealed)
-            test_data.append(held_out)
+        revealed = user_ratings.sample(frac=frac, random_state=random_seed)
+        held_out = user_ratings.drop(revealed.index)
+        train_data.append(revealed)
+        test_data.append(held_out)
     
     # Add all other users' ratings to train
     # The cold_start users (with their actual ratings) are used as test set
@@ -55,7 +113,7 @@ def cold_start(data=default_data, cold_start_user_portion=0.2, cold_start_user_r
     return trainset, testset
 
 
-# Complete cold start
+# Complete cold start, or used for cross validation
 # Splits the data by users
 def user_split(data=default_data, test_size=0.2):
     reader = Reader()
@@ -82,6 +140,18 @@ def user_split(data=default_data, test_size=0.2):
     testset = Dataset.load_from_df(test_df, reader).build_full_trainset().build_testset()
 
     return trainset, testset
+
+
+# partial cold start
+# cross validate by splitting on users. Return trainset, testset, and results
+# if trainset is defined, trainset is used, and testset is set to None. This renders data and test_size useless.
+def cold_start_cross_validate(algo, data=default_data, trainset=None, test_size=0.2 , k=5):
+    testset = None
+    if trainset == None:
+        trainset, testset = user_split(data, test_size)
+    cv = UserKFold(n_splits=k, shuffle=True, random_state=10701)
+    results = cross_validate(algo, data, cv=cv, verbose=True)
+    return trainset, testset, results
 
 
 
@@ -115,7 +185,6 @@ def ndcg_at_k(predicted, relevant, k):
     return dcg / idcg if idcg else 0
 
 def test(trainset, testset, algo, relevance_threshold=4):
-    all_items = trainset.all_items()
     test_users = set([uid for (uid, _, _) in testset])
     recs = {}
 
@@ -123,9 +192,10 @@ def test(trainset, testset, algo, relevance_threshold=4):
     for uid in test_users:
         # Get the items that the user has already rated from the trainset
         known_items = set([iid for (iid, _) in trainset.ur[trainset.to_inner_uid(uid)]])
+        all_items = set([iid for (uid, iid, _) in testset])
         candidates = [iid for iid in all_items if iid not in known_items]
         
-        predictions = [(trainset.to_raw_iid(iid), algo.predict(uid, trainset.to_raw_iid(iid)).est) for iid in candidates]
+        predictions = [(iid, algo.predict(uid, iid).est) for iid in candidates]
         
         top_n = sorted(predictions, key=lambda x: x[1], reverse=True)[:10]
         recs[uid] = [iid for iid, _ in top_n]
