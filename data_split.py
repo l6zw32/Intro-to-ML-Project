@@ -7,6 +7,7 @@ Some helper functions for generating training and testing data
 
 import random
 import math
+from collections import defaultdict
 from surprise import Dataset, Reader
 from surprise.model_selection import train_test_split, cross_validate
 import pandas as pd
@@ -167,13 +168,46 @@ def split_and_cross_validate(algo, data=default_data, test_size=0.2, train_size=
 
 
 #evaluation
-def precision_at_k(predicted, relevant, k):
-    predicted = predicted[:k]
-    return len(set(predicted) & set(relevant)) / k if k else 0
+def precision_recall_at_k(predictions, k=10, threshold=3.5):
+    """Return precision and recall at k metrics for each user
+    adopted from https://surprise.readthedocs.io/en/stable/FAQ.html#how-to-compute-precision-k-and-recall-k"""
 
-def recall_at_k(predicted, relevant, k):
-    predicted = predicted[:k]
-    return len(set(predicted) & set(relevant)) / len(relevant) if relevant else 0
+    # First map the predictions to each user.
+    user_est_true = defaultdict(list)
+    for uid, _, true_r, est, _ in predictions:
+        user_est_true[uid].append((est, true_r))
+
+    precisions = dict()
+    recalls = dict()
+    for uid, user_ratings in user_est_true.items():
+
+        # Sort user ratings by estimated value
+        user_ratings.sort(key=lambda x: x[0], reverse=True)
+
+        # Number of relevant items
+        n_rel = sum((true_r >= threshold) for (_, true_r) in user_ratings)
+
+        # Number of recommended items in top k
+        n_rec_k = sum((est >= threshold) for (est, _) in user_ratings[:k])
+
+        # Number of relevant and recommended items in top k
+        n_rel_and_rec_k = sum(
+            ((true_r >= threshold) and (est >= threshold))
+            for (est, true_r) in user_ratings[:k]
+        )
+
+        # Precision@K: Proportion of recommended items that are relevant
+        # When n_rec_k is 0, Precision is undefined. We here set it to 0.
+
+        precisions[uid] = n_rel_and_rec_k / n_rec_k if n_rec_k != 0 else 0
+
+        # Recall@K: Proportion of relevant items that are recommended
+        # When n_rel is 0, Recall is undefined. We here set it to 0.
+
+        recalls[uid] = n_rel_and_rec_k / n_rel if n_rel != 0 else 0
+
+    return precisions, recalls
+
 
 def ndcg_at_k(predicted, relevant, k):
     predicted = predicted[:k]
@@ -184,45 +218,9 @@ def ndcg_at_k(predicted, relevant, k):
     idcg = sum(1 / np.log2(i + 2) for i in range(min(len(relevant), k)))
     return dcg / idcg if idcg else 0
 
-def test(trainset, testset, algo, relevance_threshold=4):
-    test_users = set([uid for (uid, _, _) in testset])
-    recs = {}
+def evaluate(testset, algo, relevance_threshold=3.5):
+    predictions = algo.test(testset)
+    precisions, recalls = precision_recall_at_k(predictions, k=10, threshold=relevance_threshold)
 
-    # Iterate over unique users in the testset
-    for uid in test_users:
-        # Get the items that the user has already rated from the trainset
-        known_items = set([iid for (iid, _) in trainset.ur[trainset.to_inner_uid(uid)]])
-        all_items = set([iid for (uid, iid, _) in testset])
-        candidates = [iid for iid in all_items if iid not in known_items]
-        
-        predictions = [(iid, algo.predict(uid, iid).est) for iid in candidates]
-        
-        top_n = sorted(predictions, key=lambda x: x[1], reverse=True)[:10]
-        recs[uid] = [iid for iid, _ in top_n]
-    
-    test_df = pd.DataFrame(testset, columns =['UserID', 'MovieID', 'Rating'])
-
-    # Build a dictionary of relevant items per user
-    ground_truth = (
-        test_df[test_df['Rating'] >= relevance_threshold]
-        .groupby('UserID')['MovieID']
-        .apply(set)
-        .to_dict()
-    )
-    
-    results = []
-
-    for uid in ground_truth:
-        relevant_items = ground_truth.get(uid, set())
-        
-        pred = recs.get(uid, [])
-
-        results.append({
-            # 'UserID': uid,
-            'Precision@10': precision_at_k(pred, relevant_items, 10),
-            'Recall@10': recall_at_k(pred, relevant_items, 10),
-            'NDCG@10': ndcg_at_k(pred, relevant_items, 10),
-        })
-        
-    eval_df = pd.DataFrame(results)
-    return eval_df
+    return sum(prec for prec in precisions.values()) / len(precisions), sum(rec for rec in recalls.values()) / len(recalls)
+            
