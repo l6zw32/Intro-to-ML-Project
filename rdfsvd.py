@@ -10,7 +10,7 @@ Chen, Hung-Hsuan, and Pu Chen. "Differentiating Regularization Weights--A Simple
 import collections
 import numpy as np
 from surprise import AlgoBase
-from data_split import cold_start_train, evaluate
+from utils import cold_start_train, evaluate
 
 class RDFSVD(AlgoBase):
     """
@@ -98,19 +98,6 @@ class RDFSVD(AlgoBase):
                     -err * qi + reg_pu * pu)
                 self.Q[i, :] -= (self.lr_latent * epoch_shrink) * (
                     -err * pu + reg_qi * qi)
-            
-            # if show_process_rmse:
-            #     if validate_ratings is None:
-            #         rmse = self._compute_err(ratings)
-            #         print("After %i epochs, training rmse=%.6f" % (
-            #             epoch+1, rmse))
-            #     else:
-            #         rmse = self._compute_err(validate_ratings)
-            #         print("After %i epochs, validating rmse=%.6f" % (
-            #             epoch+1, rmse))
-            # else:
-            #     print("After %i epoch" % (epoch+1))
-            
 
     def estimate(self, u : int, i : int):
         known_user = self.trainset.knows_user(u)
@@ -121,12 +108,6 @@ class RDFSVD(AlgoBase):
         pu = self.P[u, :] if known_user else np.zeros(self.n_factors)
         qi = self.Q[i, :] if known_item else np.zeros(self.n_factors)
         return self.global_mean + bu + bi + np.dot(pu, qi)
-
-    # def predict(self, user_item_pairs):
-    #     all_predicts = []
-    #     for (ext_user_id, ext_item_id, r) in user_item_pairs:
-    #         all_predicts.append((ext_user_id, ext_item_id, self.estimate(ext_user_id, ext_item_id)))
-    #     return all_predicts
 
     def _external_internal_id_mapping(self, ratings):
         for (eu, ei, r) in ratings:
@@ -139,12 +120,6 @@ class RDFSVD(AlgoBase):
                 self.ei2ii[ei] = ii
                 self.ii2ei[ii] = ei
 
-    # def _compute_global_mean(self, ratings):
-    #     rating_sum = 0.
-    #     for _, _, r in ratings.all_ratings():
-    #         rating_sum += float(r)
-    #     return rating_sum / len(ratings)
-
     def _compute_n_user_item_rating(self, ratings):
         n_user_rating = collections.defaultdict(int)
         n_item_rating = collections.defaultdict(int)
@@ -154,15 +129,7 @@ class RDFSVD(AlgoBase):
         self.n_user_rating = dict(n_user_rating)
         self.n_item_rating = dict(n_item_rating)
 
-    # def _compute_err(self, ratings):
-    #     sse = 0.
 
-    #     for (ext_user_id, ext_item_id, r) in ratings:
-    #         r = float(r)
-    #         err_square = (
-    #             r - self.estimate(ext_user_id, ext_item_id)) ** 2
-    #         sse += err_square
-    #     return (sse / len(ratings)) ** .5
 if __name__ == "__main__":
     trainset, testset = cold_start_train()
     alg = RDFSVD(trainset.n_users, trainset.n_items)
