@@ -11,6 +11,7 @@ import collections
 import numpy as np
 from surprise import AlgoBase
 from utils import cold_start_train, evaluate
+from tqdm import tqdm
 
 class RDFSVD(AlgoBase):
     """
@@ -50,7 +51,7 @@ class RDFSVD(AlgoBase):
         self.global_mean = ratings.global_mean
         self._compute_n_user_item_rating(ratings)
 
-        for epoch in range(self.n_epochs):
+        for epoch in tqdm(range(self.n_epochs)):
             epoch_shrink = self.lr_shrink_rate ** epoch
             for (u, i, r) in ratings.all_ratings():
                 #print(self.bu)
@@ -132,8 +133,9 @@ class RDFSVD(AlgoBase):
 
 if __name__ == "__main__":
     trainset, testset = cold_start_train()
+    print(trainset)
     alg = RDFSVD(trainset.n_users, trainset.n_items)
     #print(alg.bu)
     alg.fit(trainset)
     print("Training Complete")
-    print(evaluate(testset, alg))
+    print(alg.test(testset))

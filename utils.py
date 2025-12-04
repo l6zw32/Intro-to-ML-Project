@@ -74,7 +74,7 @@ class UserKFold:
 
 
 # Partial cold start 
-def cold_start_train(data : Dataset =default_data, cold_start_user_portion=0.2, frac=None, n=5, random_seed=10701):
+def cold_start_train(data : Dataset =default_data, cold_start_user_portion=0.2, frac=None, n=5, random_seed=10701, df_only=False):
     """Splits data to training and testing sets based on users
     frac or n specifies how many ratings of each cold start user is revealed in training set. 
     They should not be specified at the same time. If this happens, frac takes priority. 
@@ -120,6 +120,9 @@ def cold_start_train(data : Dataset =default_data, cold_start_user_portion=0.2, 
     
     train_df = pd.concat(train_data)
     test_df = pd.concat(test_data)
+    
+    if df_only:
+        return train_df, test_df
 
     reader = Reader(rating_scale=(1, 5))
     trainset = Dataset.load_from_df(train_df[['UserID', 'MovieID', 'Rating']], reader).build_full_trainset()

@@ -7,6 +7,7 @@ import pandas as pd
 from surprise import Dataset, Reader, KNNBasic
 from sklearn.preprocessing import StandardScaler
 from utils import precision_recall_at_k, ndcg_at_k
+from tqdm import tqdm
 
 try:
     import skfuzzy as fuzz
@@ -20,7 +21,8 @@ np.random.seed(FUZZY_RANDOM_SEED)
 
 # Data locations to probe
 DATA_DIR_CANDIDATES = [
-    "./Data"
+    "./Data",
+    "./ml-1m"
 ]
 
 # Core hyperparameters
@@ -305,8 +307,10 @@ def predict_ratings_for_user(uid: int,
                              train_df: pd.DataFrame,
                              model: FuzzyUserModel,
                              movies_all: np.ndarray,
-                             top_k_neighbors: int = FRIENDS_K) -> List[Tuple[int, float]]:
-    train_by_user = _ratings_by_user(train_df)
+                             top_k_neighbors: int = FRIENDS_K,
+                             train_by_user=None) -> List[Tuple[int, float]]:
+    if train_by_user is None:
+        train_by_user = _ratings_by_user(train_df)
     r_user = {int(r.MovieID): float(r.Rating) for r in revealed_df[revealed_df["UserID"] == uid].itertuples(index=False)}
 
     sims_user = pearson_with_training(r_user, train_by_user, min_overlap=MIN_OVERLAP)
@@ -360,6 +364,22 @@ def predict_ratings_for_user(uid: int,
     predictions.sort(key=lambda x: x[1], reverse=True)
     return predictions[:TOPN]
 
+def fuzzy_predict_ratings(model: FuzzyUserModel, ratings: pd.DataFrame,
+                          train_df: pd.DataFrame, test_df: pd.DataFrame) -> Dict[int, List[Tuple[int, float]]]:
+    all_movies = ratings["MovieID"].unique()
+    all_movies.sort()
+
+    revealed_f = train_df[train_df["UserID"].isin(test_df["UserID"].unique())]
+
+    user_recs_fuzzy: Dict[int, List[int]] = {}
+    train_by_user = _ratings_by_user(train_df)
+    for uid in tqdm(test_df["UserID"].unique()):
+        recs = predict_ratings_for_user(uid, revealed_f, train_df, model, all_movies, 
+                                        top_k_neighbors=FRIENDS_K, train_by_user=train_by_user)
+        user_recs_fuzzy[uid] = recs
+    return user_recs_fuzzy
+    
+
 def main() -> None:
     ratings, users, movies = load_movielens_dfs()
     train_f, test_f = split_cold_start(ratings, seed=FUZZY_RANDOM_SEED, cold_frac=0.2, revealed_per_user=5)
@@ -376,25 +396,27 @@ def main() -> None:
 
     results = []
     user_recs_fuzzy: Dict[int, List[int]] = {}
-    for uid in test_f["UserID"].unique():
-        recs = predict_ratings_for_user(uid, revealed_f, train_f, model, all_movies, top_k_neighbors=FRIENDS_K)
+    train_by_user = _ratings_by_user(train_f)
+    for uid in tqdm(test_f["UserID"].unique()):
+        recs = predict_ratings_for_user(uid, revealed_f, train_f, model, all_movies, 
+                                        top_k_neighbors=FRIENDS_K, train_by_user=train_by_user)
         top_movie_ids = [m for m, _ in recs]
         user_recs_fuzzy[uid] = top_movie_ids
-        relevant = ground_truth_map.get(uid, [])
-        precision, recall = precision_recall_at_k(top_movie_ids, relevant, 10)
-        results.append({
-            "UserID": uid,
-            "Precision@10_Fuzzy": precision,
-            "Recall@10_Fuzzy": recall,
-            "NDCG@10_Fuzzy": ndcg_at_k(top_movie_ids, relevant, 10),
-        })
+        # relevant = ground_truth_map.get(uid, [])
+        # precision, recall = precision_recall_at_k(top_movie_ids, relevant, 10)
+        # results.append({
+        #     "UserID": uid,
+        #     "Precision@10_Fuzzy": precision,
+        #     "Recall@10_Fuzzy": recall,
+        #     "NDCG@10_Fuzzy": ndcg_at_k(top_movie_ids, relevant, 10),
+        # })
 
-    df = pd.DataFrame(results)
-    means = df[["Precision@10_Fuzzy", "Recall@10_Fuzzy", "NDCG@10_Fuzzy"]].mean(numeric_only=True)
-    print("Average metrics on cold-start users:")
-    for k, v in means.items():
-        print(f"  {k}: {v:.4f}")
-
+    # df = pd.DataFrame(results)
+    # means = df[["Precision@10_Fuzzy", "Recall@10_Fuzzy", "NDCG@10_Fuzzy"]].mean(numeric_only=True)
+    # print("Average metrics on cold-start users:")
+    # for k, v in means.items():
+    #     print(f"  {k}: {v:.4f}")
+    print(user_recs_fuzzy)
 
 if __name__ == "__main__":
     main()
