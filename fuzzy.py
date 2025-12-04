@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from surprise import Dataset, Reader, KNNBasic
 from sklearn.preprocessing import StandardScaler
-from data_split import precision_at_k, recall_at_k, ndcg_at_k
+from utils import precision_recall_at_k, ndcg_at_k
 
 try:
     import skfuzzy as fuzz
@@ -381,10 +381,11 @@ def main() -> None:
         top_movie_ids = [m for m, _ in recs]
         user_recs_fuzzy[uid] = top_movie_ids
         relevant = ground_truth_map.get(uid, [])
+        precision, recall = precision_recall_at_k(top_movie_ids, relevant, 10)
         results.append({
             "UserID": uid,
-            "Precision@10_Fuzzy": precision_at_k(top_movie_ids, relevant, 10),
-            "Recall@10_Fuzzy": recall_at_k(top_movie_ids, relevant, 10),
+            "Precision@10_Fuzzy": precision,
+            "Recall@10_Fuzzy": recall,
             "NDCG@10_Fuzzy": ndcg_at_k(top_movie_ids, relevant, 10),
         })
 

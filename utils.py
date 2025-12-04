@@ -15,7 +15,6 @@ import numpy as np
 
 default_data = Dataset.load_builtin("ml-100k")
 
-
 class UserKFold:
     """Splits the dataset into folds by users.
     Each fold contains a subset of users; validation set contains 1-frac of all ratings of those users.
@@ -88,8 +87,8 @@ def cold_start_train(data : Dataset =default_data, cold_start_user_portion=0.2, 
         Test set. Contains at most cold_start_user_portion of all users.
 
     """
-    trainset = data.build_full_trainset()
 
+    trainset = data.build_full_trainset()
     # Convert the trainset to a list of tuples (user, item, rating)
     ratings = [(trainset.to_raw_uid(uid), trainset.to_raw_iid(iid), rating) for (uid, iid, rating) in trainset.all_ratings()]
 
@@ -101,14 +100,13 @@ def cold_start_train(data : Dataset =default_data, cold_start_user_portion=0.2, 
     train_data = []
     test_data = []
     
-
     for uid in cold_start_users:
         user_ratings = ratings[ratings['UserID'] == uid]
 
         if frac is not None:
             revealed = user_ratings.sample(frac=frac, random_state=random_seed)
-        elif len(user_ratings) <= 2 * n:
-            revealed = user_ratings.sample(frac=n, random_state=random_seed)
+        elif len(user_ratings) > n:
+            revealed = user_ratings.sample(n=n, random_state=random_seed)
         else: 
             continue
         held_out = user_ratings.drop(revealed.index)
@@ -119,7 +117,7 @@ def cold_start_train(data : Dataset =default_data, cold_start_user_portion=0.2, 
     # The cold_start users (with their actual ratings) are used as test set
     other_users = ratings[~ratings['UserID'].isin(cold_start_users)]
     train_data.append(other_users)
-
+    
     train_df = pd.concat(train_data)
     test_df = pd.concat(test_data)
 
