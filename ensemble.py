@@ -8,12 +8,17 @@ import numpy as np
 import pandas as pd
 from rdfsvd import RDFSVD
 
-#from fuzzy import *
+from fuzzy import FuzzyAlgo
 
 from cluster import Cluster
 
 from surprise import Dataset, Reader, AlgoBase, Trainset
 
+
+FUZZY_RANDOM_SEED = 10701
+FUZZY_NUM_CLUSTERS = 8
+FRIENDS_K = 20
+COMBINATION_COEFF_C = 0.5
 
 class Ensemble(AlgoBase):
     def __init__(self, random_state=10701, k=3):
@@ -35,8 +40,14 @@ class Ensemble(AlgoBase):
             self.models.append(model)
             model.fit(sample_data)
             self.random_state+=1
-        # self.fuzzy = ???
-        # self.fuzzy.fit(trainset)
+        
+        for i in range(self.k):
+            sample_df=ratings.sample(n, replace=True, random_state=self.random_state)
+            sample_data = Dataset.load_from_df(sample_df[["UserID", "ItemID", "Rating"]], reader).build_full_trainset()
+            model = FuzzyAlgo(n_clusters = FUZZY_NUM_CLUSTERS, friends_k = FRIENDS_K, combo_c = COMBINATION_COEFF_C, random_seed = FUZZY_RANDOM_SEED)
+            self.models.append(model)
+            model.fit(sample_data)
+            self.random_state+=1
         
         for i in range(self.k):
             sample_df=ratings.sample(n, replace=True, random_state=self.random_state)
