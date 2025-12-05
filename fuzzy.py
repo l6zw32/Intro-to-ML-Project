@@ -207,7 +207,10 @@ class FuzzyAlgo(AlgoBase):
 
     # ---------- Estimation ----------
     def estimate(self, u, i):
-        raw_uid = int(self.trainset.to_raw_uid(u))
+        try: 
+            raw_uid = int(self.trainset.to_raw_uid(u))
+        except Exception:
+            raw_uid = int(str(u).replace("UKN__", ""))
         try:
             raw_iid = int(self.trainset.to_raw_iid(i))
         except Exception:
