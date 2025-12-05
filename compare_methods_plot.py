@@ -24,7 +24,6 @@ print(eval_demo.head())
 print("Mean metrics (Demographic Popularity):")
 print(eval_demo.mean())
 
-# Mean metrics for each method (you already computed these)
 mean_global = eval_global[["Precision@10", "Recall@10", "NDCG@10"]].mean()
 mean_demo   = eval_demo[["Precision@10", "Recall@10", "NDCG@10"]].mean()
 
