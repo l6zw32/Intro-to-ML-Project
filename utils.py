@@ -108,7 +108,7 @@ def cold_start_train(data : Dataset =default_data, cold_start_user_portion=0.2, 
         if frac is not None:
             revealed = user_ratings.sample(frac=frac, random_state=random_seed)
         elif len(user_ratings) <= 2 * n:
-            revealed = user_ratings.sample(frac=n, random_state=random_seed)
+            revealed = user_ratings.sample(n=n, random_state=random_seed)
         else: 
             continue
         held_out = user_ratings.drop(revealed.index)
@@ -282,4 +282,5 @@ def evaluate(testset : list[tuple[str, str, int]], algo, k=10, relevance_thresho
     precisions, recalls = precision_recall_at_k(predictions, k, threshold=relevance_threshold)
 
     return accuracy.rmse(predictions), accuracy.mae(predictions), sum(prec for prec in precisions.values()) / len(precisions), sum(rec for rec in recalls.values()) / len(recalls)
+
             
