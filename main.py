@@ -66,7 +66,7 @@ if __name__ == "__main__":
     fuzzy.fit(trainset)
     print("Training complete")
     print("RMSE \t MAE \t Precision@10\t Recall@10")
-    print('RDFSVD', evaluate(testset, fuzzy))
+    print('Fuzzy', evaluate(testset, fuzzy))
     
     print("----------------------------")
     print('Ensemble: each basic model applied 3 times, with bagging')
@@ -75,4 +75,5 @@ if __name__ == "__main__":
     print("Training complete")
     print("RMSE \t MAE \t Precision@10\t Recall@10")
     print('Ensemble', evaluate(testset, alg))
+
 
