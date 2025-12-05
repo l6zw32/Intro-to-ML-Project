@@ -16,13 +16,13 @@ except Exception as e:
 
 
 # Reproducibility
-FUZZY_RANDOM_SEED = 10701
-np.random.seed(FUZZY_RANDOM_SEED)
+# FUZZY_RANDOM_SEED = 10701
+# np.random.seed(FUZZY_RANDOM_SEED)
 
 # Data locations to probe
-DATA_DIR_CANDIDATES = [
-    "./Data"
-]
+# DATA_DIR_CANDIDATES = [
+#     "./Data"
+# ]
 
 # Core hyperparameters
 FUZZY_RANDOM_SEED = 10701
@@ -34,7 +34,7 @@ FRIENDS_K = 20
 COMBINATION_COEFF_C = 0.5
 MIN_OVERLAP = 2
 TOPN = 10
-DATA_DIR_CANDIDATES = ["./Data"]
+# DATA_DIR_CANDIDATES = ["./Data"]
 
 
 class FuzzyAlgo(AlgoBase):
@@ -79,27 +79,27 @@ class FuzzyAlgo(AlgoBase):
         self.train_df: pd.DataFrame | None = None
 
     # ---------- Data IO ----------
-    @staticmethod
-    def _first_existing_path(candidates: List[str]) -> str:
-        for p in candidates:
-            if os.path.isdir(p):
-                return p
-        raise FileNotFoundError("No valid data directory found among: " + ", ".join(candidates))
+    # @staticmethod
+    # def _first_existing_path(candidates: List[str]) -> str:
+    #     for p in candidates:
+    #         if os.path.isdir(p):
+    #             return p
+    #     raise FileNotFoundError("No valid data directory found among: " + ", ".join(candidates))
 
-    @classmethod
-    def load_movielens_dfs(cls) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-        data_dir = cls._first_existing_path(DATA_DIR_CANDIDATES)
-        sep = "::"
-        rating_cols = ["UserID", "MovieID", "Rating", "Timestamp"]
-        user_cols = ["UserID", "Gender", "Age", "Occupation", "Zip-code"]
-        movie_cols = ["MovieID", "Title", "Genres"]
-        ratings = pd.read_csv(os.path.join(data_dir, "ratings.dat"), sep=sep, engine="python", names=rating_cols)
-        users = pd.read_csv(os.path.join(data_dir, "users.dat"), sep=sep, engine="python", names=user_cols)
-        movies = pd.read_csv(os.path.join(data_dir, "movies.dat"), sep=sep, engine="python", names=movie_cols, encoding="latin-1")
-        ratings["UserID"] = ratings["UserID"].astype(int)
-        ratings["MovieID"] = ratings["MovieID"].astype(int)
-        ratings["Rating"] = ratings["Rating"].astype(float)
-        return ratings, users, movies
+    # @classmethod
+    # def load_movielens_dfs(cls) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    #     data_dir = cls._first_existing_path(DATA_DIR_CANDIDATES)
+    #     sep = "::"
+    #     rating_cols = ["UserID", "MovieID", "Rating", "Timestamp"]
+    #     user_cols = ["UserID", "Gender", "Age", "Occupation", "Zip-code"]
+    #     movie_cols = ["MovieID", "Title", "Genres"]
+    #     ratings = pd.read_csv(os.path.join(data_dir, "ratings.dat"), sep=sep, engine="python", names=rating_cols)
+    #     users = pd.read_csv(os.path.join(data_dir, "users.dat"), sep=sep, engine="python", names=user_cols)
+    #     movies = pd.read_csv(os.path.join(data_dir, "movies.dat"), sep=sep, engine="python", names=movie_cols, encoding="latin-1")
+    #     ratings["UserID"] = ratings["UserID"].astype(int)
+    #     ratings["MovieID"] = ratings["MovieID"].astype(int)
+    #     ratings["Rating"] = ratings["Rating"].astype(float)
+    #     return ratings, users, movies
 
     @staticmethod
     def _trainset_to_df(trainset) -> pd.DataFrame:
