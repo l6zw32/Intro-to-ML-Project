@@ -1,33 +1,33 @@
-import pandas as pd
-from typing import Dict, List
+from surprise import AlgoBase
+from collections import defaultdict
+import numpy as np
 
-def recommend_global_popularity(
-    train_df: pd.DataFrame,
-    test_df: pd.DataFrame,
-    k: int = 10, # 10 recommendations per user
-) -> Dict[int, List[int]]:
+class GlobalPopularity(AlgoBase):
+    """
+    Popularity-based recommender compatible with Surprise.
+    Scores items by how often they were rated in the trainset.
+    """
 
-    # Global popularity: count of ratings per movie
-    pop = (
-        train_df.groupby("MovieID")["Rating"]
-        .count()
-        .sort_values(ascending=False)
-    )
-    popular_items = pop.index.to_list()
+    def __init__(self):
+        AlgoBase.__init__(self)
 
-    # Items each user has already seen in train
-    user_seen = (
-        train_df.groupby("UserID")["MovieID"]
-        .apply(set)
-        .to_dict()
-    )
+    def fit(self, trainset):
+        AlgoBase.fit(self, trainset)
 
-    target_users = test_df["UserID"].unique().tolist()
-    recs: Dict[int, List[int]] = {}
+        item_counts = defaultdict(int)
+        for uid, iid, r in trainset.all_ratings():
+            item_counts[iid] += 1
 
-    for uid in target_users:
-        seen = user_seen.get(uid, set())
-        candidates = [iid for iid in popular_items if iid not in seen]
-        recs[uid] = candidates[:k]
+        self.item_counts = dict(item_counts)
+        self.max_count = max(self.item_counts.values()) if self.item_counts else 1
 
-    return recs
+        return self
+
+    def estimate(self, uid, iid):
+        # If item unseen, use global mean
+        if iid not in self.item_counts:
+            return self.trainset.global_mean
+
+        count = self.item_counts[iid]
+        # Map popularity to [1,5]
+        return 1.0 + 4.0 * (count / self.max_count)
