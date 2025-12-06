@@ -109,17 +109,6 @@ class RDFSVD(AlgoBase):
         qi = self.Q[i, :] if known_item else np.zeros(self.n_factors)
         return self.global_mean + bu + bi + np.dot(pu, qi)
 
-    def _external_internal_id_mapping(self, ratings):
-        for (eu, ei, r) in ratings:
-            if eu not in self.eu2iu:
-                iu = len(self.eu2iu)
-                self.eu2iu[eu] = iu
-                self.iu2eu[iu] = eu
-            if ei not in self.ei2ii:
-                ii = len(self.ei2ii)
-                self.ei2ii[ei] = ii
-                self.ii2ei[ii] = ei
-
     def _compute_n_user_item_rating(self, ratings):
         n_user_rating = collections.defaultdict(int)
         n_item_rating = collections.defaultdict(int)
@@ -133,7 +122,7 @@ class RDFSVD(AlgoBase):
 if __name__ == "__main__":
     trainset, testset = cold_start_train()
     alg = RDFSVD(trainset.n_users, trainset.n_items)
-    #print(alg.bu)
     alg.fit(trainset)
     print("Training Complete")
     print(evaluate(testset, alg))
+
