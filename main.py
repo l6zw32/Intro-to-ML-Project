@@ -47,6 +47,13 @@ if __name__ == "__main__":
     print("----------------------------")
     print("Basic Models")
     print()
+    print("Training Global popularity")
+    gp = GlobalPopularity()
+    gp.fit(trainset)
+    print("Training complete")
+    print("RMSE \t MAE \t Precision@10\t Recall@10")
+    print('Global popularity', evaluate(testset, gp))
+    print()
     print("Training RDFSVD")
     rdfsvd = RDFSVD(trainset.n_users, trainset.n_items)
     rdfsvd.fit(trainset)
@@ -75,5 +82,6 @@ if __name__ == "__main__":
     print("Training complete")
     print("RMSE \t MAE \t Precision@10\t Recall@10")
     print('Ensemble', evaluate(testset, alg))
+
 
 
