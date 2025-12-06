@@ -1,7 +1,8 @@
 # Intro-to-ML-Project: Cold Start Problem in Recommendation Systems
 
 
-This is the code that we have written for the project
+This is the code that we have written for the project. 
+Link to repository: https://github.com/l6zw32/Intro-to-ML-Project
 main branch: current code.
 fuzzy branch: an implementation of the fuzzy c-means algorithm
 movielens-cluster: code written for the second checkin. An attempt at clustering algorithms
