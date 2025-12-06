@@ -5,7 +5,7 @@ Created on Sat Nov 29 17:53:52 2025
 """
 
 from surprise import SVD, BaselineOnly, KNNBasic
-from data_split import cold_start_train, evaluate 
+from utils import cold_start_train, evaluate 
 
 
 # matrix factorisation baseline methods
